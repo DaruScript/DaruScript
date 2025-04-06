@@ -19,7 +19,7 @@ fn main() {
     //     todo!()
     // }
 
-    println!("VAE");
+    println!("calculator");
 
     // REPL
     loop {
