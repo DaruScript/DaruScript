@@ -19,10 +19,11 @@ cargo run
 ```
 
 ## Usage Instructions
-> Usage: daru_script.exe [OPTIONS]
->
-> Options:
-> -p, --printast
-> -h, --help      Print help
-> -V, --version   Print version
+```bash
+Usage: daru_script.exe [OPTIONS]
 
+Options:
+-p, --printast
+-h, --help      Print help
+-V, --version   Print version
+```
