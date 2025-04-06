@@ -7,6 +7,8 @@ pub fn interp(expr: Expr, env: Env) -> isize {
         Expr::Num(n) => n,
         Expr::Add(l, r) => interp(*l, env.clone()) + interp(*r, env),
         Expr::Sub(l, r) => interp(*l, env.clone()) - interp(*r, env),
+        Expr::Mul(l, r) => interp(*l, env.clone()) * interp(*r, env),
+        Expr::Div(l, r) => interp(*l, env.clone()) / interp(*r, env),
         Expr::Val(ident, expr, body) => interp(*body, {
             let mut nenv = env;
             nenv.push((ident, interp(*expr, nenv.clone())));

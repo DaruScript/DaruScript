@@ -100,21 +100,20 @@ impl Parser {
     }
 
     fn parse_factor(&mut self) -> Expr {
-        let expr = self.parse_unary();
+        let mut expr = self.parse_unary();
 
         while let Some(kind) = [TokenKind::Slash, TokenKind::Star]
             .iter()
             .find(|x| self.check(x))
         {
             self.advance().expect("expected a token");
-            let _right = self.parse_unary();
+            let right = self.parse_unary();
             expr = match kind {
-                TokenKind::Slash => todo!(),           // unsupported
-                TokenKind::Star => todo!(),            // unsupported
+                TokenKind::Slash => Expr::Div(Box::new(expr), Box::new(right)),
+                TokenKind::Star => Expr::Mul(Box::new(expr), Box::new(right)),
                 _ => panic!("expected Slash or Star"), // todo! error handling
             };
         }
-
         expr
     }
 
