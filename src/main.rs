@@ -36,9 +36,9 @@ fn main() {
 
         println!("{:?}", line.trim());
         if cli.printast {
-            println!("{:?}", gen_ast(&line));
+            println!("{}", gen_ast(&line));
         } else {
-            println!("{:?}", run(&line));
+            println!("{}", run(&line));
         }
     }
 }

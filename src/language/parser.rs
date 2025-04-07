@@ -120,7 +120,7 @@ impl Parser {
     fn parse_unary(&mut self) -> Expr {
         let next_token = match self.peek() {
             Some(tok) => tok,
-            None => return self.parse_primary(),
+            None => return self.parse_postfix_unary(),
         };
 
         match next_token.kind {
@@ -137,7 +137,32 @@ impl Parser {
             _ => (),
         }
 
-        self.parse_primary()
+        self.parse_postfix_unary()
+    }
+
+    fn parse_postfix_unary(&mut self) -> Expr {
+        let mut left = self.parse_primary();
+
+        loop {
+            let next_token = match self.peek() {
+                Some(tok) => tok,
+                None => return left,
+            };
+
+            match next_token.kind {
+                TokenKind::LeftParen => {
+                    self.advance().expect("expected LeftParen");
+                    let expr = self.expression();
+                    self.consume(&TokenKind::RightParen, "Expected ')' after expression.");
+                    left = Expr::App(Box::new(left), Box::new(expr));
+                }
+                _ => {
+                    break;
+                }
+            }
+        }
+
+        left
     }
 
     fn parse_primary(&mut self) -> Expr {
@@ -166,22 +191,46 @@ impl Parser {
 
             TokenKind::LeftBrace => {
                 self.advance().expect("expected LeftBrace");
-                if self.check(&TokenKind::Var) { panic!("'var' is unsupported"); }
+                if self.check(&TokenKind::Var) {
+                    panic!("'var' is unsupported");
+                }
 
-                self.consume(&TokenKind::Val, "expected 'val'");
-                let ident = self.advance().expect("expected identifier");
-                if ident.kind != TokenKind::Ident { panic!("not an identifier"); }
-                let ident = ident.lexeme;
+                if self.check(&TokenKind::Val) {
+                    // { val x = 100; expr }
+                    self.consume(&TokenKind::Val, "expected 'val'");
+                    let ident = self.advance().expect("expected identifier");
+                    if ident.kind != TokenKind::Ident {
+                        panic!("not an identifier");
+                    }
+                    let ident = ident.lexeme;
 
-                self.consume(&TokenKind::Equals, "expected '='");
-                let expr = self.expression();
+                    self.consume(&TokenKind::Equals, "expected '='");
+                    let expr = self.expression();
 
-                self.consume(&TokenKind::Semicolon, "expected ';'");
-                let body  = self.expression();
+                    self.consume(&TokenKind::Semicolon, "expected ';'");
+                    let body = self.expression();
 
-                self.consume(&TokenKind::RightBrace, "Expected '}' after expression.");
-                
-                Expr::Val(ident, Box::new(expr), Box::new(body))
+                    self.consume(&TokenKind::RightBrace, "Expected '}' after expression.");
+
+                    Expr::Val(ident, Box::new(expr), Box::new(body))
+                } else {
+                    // First-class functions
+                    // { x => 100 }
+                    let ident = self.advance().expect("expected identifier");
+                    if ident.kind != TokenKind::Ident {
+                        panic!("not an identifier");
+                    }
+                    let ident = ident.lexeme;
+
+                    // consume =>
+                    self.consume(&TokenKind::Equals, "expected '='");
+                    self.consume(&TokenKind::Greater, "expected '>'");
+
+                    let expr = self.expression();
+                    self.consume(&TokenKind::RightBrace, "Expected '}' after expression.");
+
+                    Expr::Fun(ident, Box::new(expr))
+                }
             }
 
             TokenKind::Ident => {

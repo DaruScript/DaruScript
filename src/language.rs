@@ -4,7 +4,7 @@ mod parser;
 mod scanner;
 
 use scanner::Scanner;
-use ast::Expr;
+use ast::{Expr, Value};
 use parser::Parser;
 
 pub fn gen_ast(source: &str) -> Expr {
@@ -14,6 +14,6 @@ pub fn gen_ast(source: &str) -> Expr {
     parser.parse().expect("expected expr")
 }
 
-pub fn run(source: &str) -> isize {
+pub fn run(source: &str) -> Value {
     interp::interp(gen_ast(source), vec![])
 }
