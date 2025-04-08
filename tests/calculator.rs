@@ -27,6 +27,7 @@ fn division() {
 #[test]
 fn closure() {
     assert_eq!(run("{x => x}(26) + {x => x}(4)").to_string(), "30");
+    assert_eq!(run("{x => {y => x + y} }(3)(5)").to_string(), "8");
     assert_eq!(run("{t => t}(26) * {k => k}(6)").to_string(), "156");
     assert_eq!(run("{v => v}(24) / {z => z}(3)").to_string(), "8");
     assert_eq!(run("{l => l}({m => 2*m})(10) + 2").to_string(), "22");
