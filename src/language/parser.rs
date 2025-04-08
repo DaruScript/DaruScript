@@ -1,4 +1,4 @@
-use super::ast::Expr;
+use super::untyped::Expr;
 use super::scanner::{Literal, Token, TokenKind};
 use std::iter::Peekable;
 use std::vec::IntoIter;

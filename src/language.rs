@@ -1,10 +1,12 @@
-mod ast;
+mod untyped;
 mod interp;
 mod parser;
 mod scanner;
+mod typed;
+mod type_checker;
 
 use scanner::Scanner;
-use ast::{Expr, Value};
+use untyped::{Expr, Value};
 use parser::Parser;
 
 pub fn gen_ast(source: &str) -> Expr {

@@ -1,6 +1,6 @@
 use core::fmt;
 
-use super::ast::*;
+use super::untyped::*;
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -11,7 +11,7 @@ impl fmt::Display for Value {
     }
 }
 
-pub fn interp(expr: Expr, env: Env) -> Value {
+pub fn interp(expr: Expr, mut env: Env) -> Value {
     match expr {
         Expr::Num(n) => Value::Num(n),
         Expr::Add(l, r) => {
@@ -42,10 +42,9 @@ pub fn interp(expr: Expr, env: Env) -> Value {
                 panic!("incompatible types");
             }
         }
-        Expr::Val(ident, expr, body) => interp(*body, {
-            let mut nenv = env;
-            nenv.push((ident, interp(*expr, nenv.clone())));
-            nenv
+        Expr::Val(name, expr, body) => interp(*body, {
+            env.push((name, interp(*expr, env.clone())));
+            env
         }),
         Expr::Id(ident) => env
             .iter()
