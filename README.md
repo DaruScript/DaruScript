@@ -1,6 +1,8 @@
 # DaruScript
 
-### Milestone 1: Calculator
+## Milestone 2: Core DaruScript features
+
+### ~~Milestone 1: Calculator: Complete~~
 
 ## Build Instructions
 Clone the GitHub Repository:
