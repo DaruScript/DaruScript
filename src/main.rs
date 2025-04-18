@@ -34,11 +34,12 @@ fn main() {
             .read_line(&mut line)
             .expect("Failed to read line");
 
-        if line.trim().is_empty() {
+        let line = line.trim();
+        if line.is_empty() || ["quit()", "exit()", "やめてください"].contains(&line) {
             break;
         }
 
-        println!("{:?}", line.trim());
+        println!("{:?}", line);
         if cli.printast {
             println!("{}", gen_ast(&line));
         } else if cli.typecheck {
