@@ -1,10 +1,20 @@
-use super::untyped::Expr;
 use super::scanner::{Literal, Token, TokenKind};
+use super::typed::Type;
+use super::typed::Expr;
+use std::cell::RefCell;
 use std::iter::Peekable;
+use std::rc::Rc;
 use std::vec::IntoIter;
 
 pub struct Parser {
     pub tokens: Peekable<IntoIter<Token>>,
+}
+
+// Returns a new type variable and let the type be inferred.
+fn omit_type() -> Type {
+    Type::Var {
+        typ: Rc::new(RefCell::new(None)),
+    }
 }
 
 impl Parser {
@@ -212,7 +222,7 @@ impl Parser {
 
                     self.consume(&TokenKind::RightBrace, "Expected '}' after expression.");
 
-                    Expr::Val(ident, Box::new(expr), Box::new(body))
+                    Expr::Val(ident, omit_type(), Box::new(expr), Box::new(body))
                 } else {
                     // First-class functions
                     // { x => 100 }
@@ -229,7 +239,7 @@ impl Parser {
                     let expr = self.expression();
                     self.consume(&TokenKind::RightBrace, "Expected '}' after expression.");
 
-                    Expr::Fun(ident, Box::new(expr))
+                    Expr::Fun(ident, omit_type(), Box::new(expr))
                 }
             }
 

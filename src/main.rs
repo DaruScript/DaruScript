@@ -1,4 +1,5 @@
 use clap::Parser;
+use daru_script::language::type_check;
 use std::io::{self, Write};
 
 #[derive(Parser)]
@@ -7,6 +8,9 @@ struct Cli {
     // file_path: Option<String>,
     #[clap(short, long)]
     printast: bool,
+
+    #[clap(short, long)]
+    typecheck: bool,
 }
 
 fn main() {
@@ -37,6 +41,8 @@ fn main() {
         println!("{:?}", line.trim());
         if cli.printast {
             println!("{}", gen_ast(&line));
+        } else if cli.typecheck {
+            println!("{}", type_check(&line));
         } else {
             println!("{}", run(&line));
         }
