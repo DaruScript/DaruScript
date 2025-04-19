@@ -1,358 +1,159 @@
-use super::{type_checker::resolve, untyped::Expr as Untyped};
-use core::fmt;
-use std::{cell::RefCell, rc::Rc};
-
-#[derive(Debug, Clone)]
-pub enum Type {
-    Num,
-    Fun(Box<Type>, Box<Type>),
-    // Type Variable
-    Var { typ: Rc<RefCell<Option<Type>>> },
+#[derive(Clone, Debug)]
+pub struct Program {
+    pub declarations: Vec<Decl>,
 }
 
-impl PartialEq for Type {
-    fn eq(&self, other: &Type) -> bool {
-        match (self, other) {
-            (Type::Num, Type::Num) => true,
-            (Type::Fun(x1, r1), Type::Fun(x2, r2)) => x1 == x2 && r1 == r2,
-            (Type::Var { typ: typ1 }, Type::Var { typ: typ2 }) => Rc::ptr_eq(typ1, typ2),
-            _ => false,
-        }
-    }
+#[derive(Clone, Debug)]
+pub enum Decl {
+    Struct(StructDecl),
+    Function(FnDecl),
+    MutVal(MutValDecl),
+    Val(ValDecl),
+    Expr(Expr),
 }
 
-impl fmt::Display for Type {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match resolve(self.clone()) {
-            Type::Num => write!(f, "Num"),
-            Type::Fun(l, r) => write!(f, "{} -> {}", l, r),
-            Type::Var { typ } => write!(
-                f,
-                "Var({})",
-                match typ.borrow().clone() {
-                    Some(x) => x.to_string(),
-                    None => "None".to_string(),
-                }
-            ),
-        }
-    }
+pub type Ident = String;
+
+/// Parameter
+#[derive(Clone, Debug)]
+pub struct Param {
+    pub name: Ident,
+    // ty: Option<Type>  // todo! optional type parameters
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Expr {
-    Num(isize),
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
-    Val(String, Type, Box<Expr>, Box<Expr>),
-    Id(String),
-    // First-class functions
-    Fun(String, Type, Box<Expr>),
-    // Apply first-class function
-    App(Box<Expr>, Box<Expr>),
+/// Function signature
+#[derive(Clone, Debug)]
+pub struct FnSig {
+    pub params: Vec<Param>,
 }
 
-impl fmt::Display for Expr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Expr::Num(n) => write!(f, "Num({})", n),
-            Expr::Add(left, right) => write!(f, "Add({}, {})", left.to_string(), right.to_string()),
-            Expr::Sub(left, right) => write!(f, "Sub({}, {})", left.to_string(), right.to_string()),
-            Expr::Val(ident, _typ, expr, body) => write!(
-                f,
-                "Val(\"{}\", {}, {})",
-                ident.to_string(),
-                expr.to_string(),
-                body.to_string()
-            ),
-            Expr::Id(ident) => write!(f, "Id(\"{}\")", ident.to_string()),
-            Expr::Fun(param, _typ, body) => {
-                write!(f, "Fun(\"{}\", {})", param.to_string(), body.to_string())
-            }
-            Expr::App(func, arg) => write!(f, "App({}, {})", func.to_string(), arg.to_string()),
-            Expr::Mul(left, right) => write!(f, "Mul({}, {})", left.to_string(), right.to_string()),
-            Expr::Div(left, right) => write!(f, "Div({}, {})", left.to_string(), right.to_string()),
-        }
-    }
+#[derive(Clone, Debug)]
+pub struct StructDecl {
+    pub name: Ident,
+    pub methods: Vec<FnDecl>,
 }
 
-impl Expr {
-    pub fn type_erase(&self) -> Untyped {
-        Expr::erase(self)
-    }
-
-    fn erase(expr: &Expr) -> Untyped {
-        match expr {
-            Expr::Num(n) => Untyped::Num(*n),
-            Expr::Add(l, r) => Untyped::Add(Box::new(Expr::erase(l)), Box::new(Expr::erase(r))),
-            Expr::Sub(l, r) => Untyped::Sub(Box::new(Expr::erase(l)), Box::new(Expr::erase(r))),
-            Expr::Mul(l, r) => Untyped::Mul(Box::new(Expr::erase(l)), Box::new(Expr::erase(r))),
-            Expr::Div(l, r) => Untyped::Div(Box::new(Expr::erase(l)), Box::new(Expr::erase(r))),
-            Expr::Val(x, _, e, b) => Untyped::Val(
-                x.to_string(),
-                Box::new(Expr::erase(e)),
-                Box::new(Expr::erase(b)),
-            ),
-            Expr::Id(x) => Untyped::Id(x.to_string()),
-            Expr::Fun(p, _, b) => Untyped::Fun(p.to_string(), Box::new(Expr::erase(b))),
-            Expr::App(f, a) => Untyped::App(Box::new(Expr::erase(f)), Box::new(Expr::erase(a))),
-        }
-    }
+#[derive(Clone, Debug)]
+pub struct FnDecl {
+    pub name: Ident,
+    pub sig: FnSig,
+    pub body: Box<Expr>,
 }
 
-pub type TEnv = Vec<(String, Type)>;
+#[derive(Clone, Debug)]
+pub struct MutValDecl {
+    pub name: Ident,
+    pub initializer: Option<Expr>,
+}
 
-#[cfg(test)]
-mod tests {
-    use std::cell::RefCell;
-    use std::rc::Rc;
+#[derive(Clone, Debug)]
+pub struct ValDecl {
+    pub name: Ident,
+    pub initializer: Option<Expr>,
+}
 
-    use super::Expr::*;
-    use super::Type;
-    use crate::language::type_checker::type_check;
+#[derive(Clone, Debug)]
+pub struct Expr {
+    pub kind: ExprKind,
+}
 
-    #[test]
-    fn addition_type_check() {
-        assert_eq!(
-            type_check(
-                Add(
-                    Box::new(Add(Box::new(Num(1)), Box::new(Num(2)))),
-                    Box::new(Num(3))
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Num".to_string()
-        );
-        assert_eq!(
-            type_check(
-                Val(
-                    String::from("x"),
-                    Type::Num,
-                    Box::new(Num(6)),
-                    Box::new(Add(Box::new(Num(1)), Box::new(Id(String::from("x")))))
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Num".to_string()
-        );
-    }
+#[derive(Clone, Debug)]
+pub enum ExprKind {
+    /// An array (e.g. `[a, b, c]`).
+    Array(Vec<Expr>),
+    /// A function call.
+    ///
+    /// The first field resolves to the function itself,
+    /// and the second is a list of arguments.
+    Call(Box<Expr>, Vec<Expr>),
+    /// A binary operation (e.g., `a + b`, `a * b`).
+    Binary(BinOp, Box<Expr>, Box<Expr>),
+    /// A unary operation (e.g., `-x`, `!x`).
+    Unary(UnOp, Box<Expr>),
+    /// An `if` block, with an optional `else` block.
+    ///
+    /// `if (expr) { block } else { expr }`
+    If(Box<Expr>, Box<Block>, Option<Box<Block>>),
+    /// A while loop, with an optional label.
+    /// label todo!
+    ///
+    /// `'label: while expr { block }`
+    While(Box<Expr>, Box<Block>),
+    /// A for loop to loop over elements of a data structure.
+    /// The first field is the element
+    ///
+    /// `for (x in range(10)) {  }`
+    For(Ident, Box<Expr>, Box<Block>),
+    /// A print to standard output.
+    Print(Option<Box<Expr>>),
+    /// A closure
+    ///
+    /// val x = 1;
+    /// val f = |x|(times) => { times * x }
+    Closure(Closure),
+    /// A block (`{ ... }`).
+    Block(Box<Block>),
+    /// A break (`break "value"`).
+    Break(Option<Box<Expr>>),
+    /// A `return` (`return "value"`).
+    Ret(Option<Box<Expr>>),
+    // A struct literal expression.
+    //
+    // E.g., `Point { x: 1, y: 2 }`.
+    // Struct(Box<StructExpr>),
+    // todo!
+}
 
-    #[test]
-    fn type_inferred() {
-        // {x => y => x}(1)
-        assert_eq!(
-            type_check(
-                App(
-                    Box::new(Fun(
-                        "x".to_string(),
-                        Type::Var {
-                            typ: Rc::new(RefCell::new(None))
-                        },
-                        Box::new(Fun(
-                            "y".to_string(),
-                            Type::Var {
-                                typ: Rc::new(RefCell::new(None))
-                            },
-                            Box::new(Id("x".to_string()))
-                        )),
-                    )),
-                    Box::new(Num(1))
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Var(None) -> Num".to_string()
-        );
+/// A block (`{ .. }`).
+///
+/// E.g., `{ .. }` as in `fn f() { .. }`.
+#[derive(Clone, Debug)]
+pub struct Block {
+    pub stmts: Vec<Decl>,
+}
 
-        assert_eq!(
-            // {x => x + 1}(2)
-            type_check(
-                App(
-                    Box::new(Fun(
-                        "x".to_string(),
-                        Type::Var {
-                            typ: Rc::new(RefCell::new(None))
-                        },
-                        Box::new(Add(Box::new(Id("x".to_string())), Box::new(Num(1))))
-                    )),
-                    Box::new(Num(2)),
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Num".to_string()
-        );
+#[derive(Clone, Debug)]
+pub enum BinOp {
+    /// The `+` operator (addition)
+    Add,
+    /// The `-` operator (subtraction)
+    Sub,
+    /// The `*` operator (multiplication)
+    Mul,
+    /// The `/` operator (division)
+    Div,
+    /// The `%` operator (modulus)
+    Rem,
+    /// The `&&` operator (logical and)
+    And,
+    /// The `||` operator (logical or)
+    Or,
+    /// The `==` operator (equality)
+    Eq,
+    /// The `<` operator (less than)
+    Lt,
+    /// The `<=` operator (less than or equal to)
+    Le,
+    /// The `!=` operator (not equal to)
+    Ne,
+    /// The `>=` operator (greater than or equal to)
+    Ge,
+    /// The `>` operator (greater than)
+    Gt,
+}
 
-        assert_eq!(
-            // val x = 1; val x = x + 1; x
-            type_check(
-                Val(
-                    "x".to_string(),
-                    Type::Var {
-                        typ: Rc::new(RefCell::new(None))
-                    },
-                    Box::new(Num(1)),
-                    Box::new(Val(
-                        "x".to_string(),
-                        Type::Var {
-                            typ: Rc::new(RefCell::new(None))
-                        },
-                        Box::new(Add(Box::new(Id("x".to_string())), Box::new(Num(1)))),
-                        Box::new(Id("x".to_string()))
-                    )),
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Num".to_string()
-        );
+/// Unary operator.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum UnOp {
+    /// The `!` operator for logical inversion
+    Not,
+    /// The `-` operator for negation
+    Neg,
+}
 
-        assert_eq!(
-            type_check(
-                Val(
-                    "f".to_string(),
-                    Type::Var {
-                        typ: Rc::new(RefCell::new(None))
-                    },
-                    Box::new(Fun(
-                        "x".to_string(),
-                        Type::Var {
-                            typ: Rc::new(RefCell::new(None))
-                        },
-                        Box::new(Add(Box::new(Id("x".to_string())), Box::new(Num(1))))
-                    )),
-                    Box::new(App(Box::new(Id("f".to_string())), Box::new(Num(3))))
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Num".to_string()
-        );
-
-        assert_eq!(
-            // x = 6; 1 + x
-            type_check(
-                Val(
-                    String::from("x"),
-                    Type::Var {
-                        typ: Rc::new(RefCell::new(None))
-                    },
-                    Box::new(Num(6)),
-                    Box::new(Add(Box::new(Num(1)), Box::new(Id(String::from("x")))))
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Num".to_string()
-        );
-
-        assert_eq!(
-            // val x1 = x => x; val x2 = x1; val x3= x2(1); x1
-            type_check(
-                Val(
-                    "x1".to_string(),
-                    Type::Var {
-                        typ: Rc::new(RefCell::new(None))
-                    },
-                    // expr
-                    Box::new(Fun(
-                        "x".to_string(),
-                        Type::Var {
-                            typ: Rc::new(RefCell::new(None))
-                        },
-                        Box::new(Id("x".to_string()))
-                    )),
-                    // body
-                    Box::new(Val(
-                        "x2".to_string(),
-                        Type::Var {
-                            typ: Rc::new(RefCell::new(None))
-                        },
-                        Box::new(Id("x1".to_string())),
-                        Box::new(Val(
-                            "x3".to_string(),
-                            Type::Var {
-                                typ: Rc::new(RefCell::new(None))
-                            },
-                            Box::new(App(Box::new(Id("x2".to_string())), Box::new(Num(1)))),
-                            Box::new(Id("x1".to_string()))
-                        ))
-                    ))
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Num -> Num".to_string()
-        );
-    }
-
-    #[test]
-    #[should_panic]
-    fn type_inferred_invalid() {
-        type_check(
-            // x => x(x)
-            Fun(
-                "x".to_string(),
-                Type::Var {
-                    typ: Rc::new(RefCell::new(None)),
-                },
-                Box::new(App(
-                    Box::new(Id("x".to_string())),
-                    Box::new(Id("x".to_string())),
-                )),
-            ),
-            vec![],
-        );
-
-        // x = x => x; 1 + x
-        type_check(
-            Val(
-                String::from("x"),
-                Type::Var {
-                    typ: Rc::new(RefCell::new(None)),
-                },
-                Box::new(Fun(
-                    "x".to_string(),
-                    Type::Num,
-                    Box::new(Id("x".to_string())),
-                )),
-                Box::new(Add(Box::new(Num(1)), Box::new(Id(String::from("x"))))),
-            ),
-            vec![],
-        );
-
-        type_check(App(Box::new(Num(1)), Box::new(Num(2))), vec![]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn addition_type_check_invalid() {
-        assert_eq!(
-            type_check(
-                Add(
-                    Box::new(Add(Box::new(Num(1)), Box::new(Num(2)))),
-                    Box::new(Fun(String::from("x"), Type::Num, Box::new(Num(100))))
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Num".to_string()
-        );
-        assert_eq!(
-            type_check(
-                Val(
-                    String::from("x"),
-                    Type::Fun(Box::new(Type::Num), Box::new(Type::Num)),
-                    Box::new(Num(6)),
-                    Box::new(Add(Box::new(Num(1)), Box::new(Id(String::from("x")))))
-                ),
-                vec![]
-            )
-            .to_string(),
-            "Num".to_string()
-        );
-    }
+#[derive(Clone, Debug)]
+pub struct Closure {
+    pub capture_args: Vec<Ident>,
+    pub fn_sig: Box<FnSig>,
+    pub body: Box<Expr>,
 }

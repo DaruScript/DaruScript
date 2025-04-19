@@ -1,4 +1,4 @@
-use daru_script::language::run;
+use daru_script::calculator::run;
 
 #[test]
 fn addition() {

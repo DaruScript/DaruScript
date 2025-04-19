@@ -1,5 +1,5 @@
 use clap::Parser;
-use daru_script::language::type_check;
+use daru_script::calculator::type_check;
 use std::io::{self, Write};
 
 #[derive(Parser)]
@@ -14,8 +14,8 @@ struct Cli {
 }
 
 fn main() {
-    use daru_script::language::run;
-    use daru_script::language::gen_ast;
+    use daru_script::calculator::run;
+    use daru_script::calculator::gen_ast;
 
     let cli = Cli::parse();
 

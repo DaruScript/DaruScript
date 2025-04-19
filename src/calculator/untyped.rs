@@ -50,7 +50,7 @@ impl fmt::Display for Expr {
 #[cfg(test)]
 mod tests {
     use super::Expr::*;
-    use crate::language::gen_ast as gen_ast_typed;
+    use crate::calculator::gen_ast as gen_ast_typed;
     
     fn gen_ast(source: &str) -> super::Expr {
         gen_ast_typed(source).type_erase()
