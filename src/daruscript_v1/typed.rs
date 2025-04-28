@@ -110,7 +110,7 @@ mod tests {
 
     use super::Expr::*;
     use super::Type;
-    use crate::calculator::type_checker::type_check;
+    use crate::daruscript_v1::type_checker::type_check;
 
     #[test]
     fn addition_type_check() {

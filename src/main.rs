@@ -1,5 +1,5 @@
 use clap::Parser;
-use daru_script::calculator::type_check;
+use daru_script::daruscript_v1::type_check;
 use std::io::{self, Write};
 
 #[derive(Parser)]
@@ -14,8 +14,8 @@ struct Cli {
 }
 
 fn main() {
-    use daru_script::calculator::run;
-    use daru_script::calculator::gen_ast;
+    use daru_script::daruscript_v1::gen_ast;
+    use daru_script::daruscript_v1::run;
 
     let cli = Cli::parse();
 
@@ -23,7 +23,7 @@ fn main() {
     //     todo!()
     // }
 
-    println!("calculator");
+    println!("daruscript_v1");
 
     // REPL
     loop {
